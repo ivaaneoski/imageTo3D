@@ -26,3 +26,6 @@ test_data/
 
 # Allow test input images
 !photo.jpg
+
+# Ignore product spec
+productSpec.md
