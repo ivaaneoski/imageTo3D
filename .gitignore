@@ -1,0 +1,29 @@
+# Python virtual environment and caches
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Model Weights Cache (Hugging Face / ONNX models)
+weights/
+.cache/
+
+# Local pipeline intermediates & test data
+intermediates/
+test_data/
+
+# Block large binary and image outputs
+*.glb
+*.gltf
+*.bin
+*.obj
+*.mtl
+*.ply
+*.png
+*.jpg
+*.jpeg
+
+# IDE settings
+.vscode/
+.idea/

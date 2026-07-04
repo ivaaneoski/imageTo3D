@@ -1,0 +1,13 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.0.0
+torchvision
+onnxruntime>=1.15.0
+onnx
+onnxscript
+open3d>=0.17.0
+numpy>=1.20.0,<2.0.0
+Pillow>=9.0.0
+transformers>=4.45.0
+huggingface-hub
+pygltflib
+opencv-python-headless
