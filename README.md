@@ -7,7 +7,7 @@ The pipeline performing this conversion is:
 
 ---
 
-## 📸 Test Visualizations & Screenshots
+## Test Visualizations & Screenshots
 
 Below are placeholders for the visual comparisons of the input and the generated 3D outputs. *(You can add your screenshots here)*
 
@@ -23,7 +23,7 @@ Below are placeholders for the visual comparisons of the input and the generated
 
 ---
 
-## 🧠 Technical Architecture & How It Works
+## Technical Architecture & How It Works
 
 Here is a detailed breakdown of the mathematics and algorithms running under the hood at each stage of the pipeline.
 
@@ -97,7 +97,7 @@ Any remaining open boundaries are sealed using Open3D's tensor-based `fill_holes
 
 ---
 
-## 🛠️ Installation & Virtual Environment Setup
+## Installation & Virtual Environment Setup
 
 This tool runs entirely on CPU (no GPU required) and is tested on Python 3.11+.
 
@@ -133,7 +133,7 @@ This tool runs entirely on CPU (no GPU required) and is tested on Python 3.11+.
 
 ---
 
-## 🚀 CLI Usage & Executing the Pipeline
+## CLI Usage & Executing the Pipeline
 
 Once the virtual environment is activated, run the full pipeline using your test image:
 
@@ -159,7 +159,7 @@ python pointcloud_only.py --input photo.jpg --output test_data/standalone_cloud.
 
 ---
 
-## 👁️ Recommended 3D Viewer Extensions (VS Code)
+## Recommended 3D Viewer Extensions (VS Code)
 
 To inspect the point clouds and meshes directly inside VS Code, install the following extensions:
 1.  **3D Point Cloud and Mesh Visualizer** by *kleinicke* (ideal for opening and inspecting `.ply` point cloud files).
@@ -167,7 +167,7 @@ To inspect the point clouds and meshes directly inside VS Code, install the foll
 
 ---
 
-## 📁 Repository Directory Structure
+## Repository Directory Structure
 
 ```
 image-to-3d/
@@ -186,7 +186,7 @@ image-to-3d/
 
 ---
 
-## ⚠️ Known Limitations & Core Constraints
+## Known Limitations & Core Constraints
 - **Relief Geometry Only (No Back-Side):** This tool does NOT perform "walk-around" full 3D object generation. It produces accurate depth and geometry for **what the camera saw only**. The back of the objects is open, and occluded geometry is not reconstructed.
 - **Relative Depth, Not Metric:** The estimated depth is relative (disparity-based), not absolute. The dimensions of the output mesh do not correspond to physical real-world units (meters) unless you define reference distances.
 - **Reflective & Textureless Surfaces:** Glass, mirrors, metallic objects, or completely featureless/flat surfaces will produce noisy or incorrect depth estimations.
