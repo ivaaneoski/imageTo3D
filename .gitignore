@@ -11,7 +11,6 @@ weights/
 
 # Local pipeline intermediates & test data
 intermediates/
-test_data/
 
 # Block large binary and image outputs
 *.glb
@@ -29,3 +28,10 @@ test_data/
 
 # Ignore product spec
 productSpec.md
+
+# Allow test_data files
+!test_data/
+!test_data/*.glb
+!test_data/*.ply
+!test_data/*.jpg
+!test_data/*.png
