@@ -24,6 +24,5 @@ test_data/
 *.jpg
 *.jpeg
 
-# IDE settings
-.vscode/
-.idea/
+# Allow test input images
+!photo.jpg
