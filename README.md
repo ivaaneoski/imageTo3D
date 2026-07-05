@@ -14,7 +14,7 @@ Below are the visual comparisons of the input image, estimated depth map, point 
 ### 1. Input Image vs. Depth Map Estimation & Inpainting
 | Input Image (`photo.jpg`) | Raw Depth Map (Viridis) | Inpainted Depth Map (Viridis) |
 | :---: | :---: | :---: |
-| ![Input Photo](photo.jpg) | ![Raw Depth Map](intermediates/depth_map_color.png) | ![Inpainted Depth Map](intermediates/depth_map_inpainted_color.png) |
+| ![Input Photo](photo.jpg) | ![Raw Depth Map](intermediates/depth_map_color.png) |
 
 ### 2. Point Cloud Projection
 | Projected Point Cloud (`pointcloud.gif`) |
