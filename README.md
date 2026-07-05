@@ -9,17 +9,22 @@ The pipeline performing this conversion is:
 
 ## Test Visualizations & Screenshots
 
-Below are placeholders for the visual comparisons of the input and the generated 3D outputs. *(You can add your screenshots here)*
+Below are the visual comparisons of the input image, estimated depth map, point cloud projection, and the reconstructed 3D meshes.
 
 ### 1. Input Image vs. Estimated Depth Map
-| Input Image (`photo.jpg`) | Colorized Depth Map |
+| Input Image (`photo.jpg`) | Colorized Depth Map (Viridis) |
 | :---: | :---: |
-| *[Placeholder: Input Photo]* | *[Placeholder: Depth Map (Viridis)]* |
+| ![Input Photo](photo.jpg) | ![Depth Map (Viridis)](intermediates/depth_map_color.png) |
 
-### 2. Mesh Reconstruction (Raw vs. Repaired)
-| Raw Mesh (`_raw.glb` with gap/hole) | Repaired Mesh (`_filled.glb` closed) |
+### 2. Point Cloud Projection
+| Projected Point Cloud (`pointcloud.gif`) |
+| :---: |
+| ![Point Cloud Projection](pointcloud.gif) |
+
+### 3. Mesh Reconstruction (Raw vs. Repaired)
+| Raw Mesh (`raw.gif` with gap/hole) | Repaired Mesh (`filled.gif` closed) |
 | :---: | :---: |
-| *[Placeholder: Raw Mesh]* | *[Placeholder: Filled Mesh]* |
+| ![Raw Mesh](raw.gif) | ![Filled Mesh](filled.gif) |
 
 ---
 
