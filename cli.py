@@ -158,6 +158,11 @@ def main():
         action="store_true",
         help="Disable CPU subnormal/denormal flushing and ONNX thread optimizations."
     )
+    parser.add_argument(
+        "--double-sided",
+        action="store_true",
+        help="Generate a closed double-sided 3D shape by mirroring the relief geometry and normals to the back side."
+    )
     
     args = parser.parse_args()
     
@@ -186,7 +191,8 @@ def main():
             use_quantize=args.quantize,
             use_ann_normals=args.use_ann_normals,
             ann_eps=args.ann_eps,
-            use_fast_math=not args.no_fast_math
+            use_fast_math=not args.no_fast_math,
+            double_sided=args.double_sided
         )
     except Exception as e:
         print(f"\nPipeline failed with error: {e}", file=sys.stderr)

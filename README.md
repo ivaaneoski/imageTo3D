@@ -84,6 +84,16 @@ $$X = \frac{(u - c_x) \cdot Z}{f_x}$$
 $$Y = -\frac{(v - c_y) \cdot Z}{f_y}$$
 $$Z = Z$$
 
+#### D. Double-Sided Mirroring
+When `--double-sided` is enabled, the tool constructs a closed, watertight 3D solid by duplicating and mirroring the front relief shell to the back along the central symmetry plane at $Z = d_{\text{max}}$.
+1. **Geometry Mirroring**: For each projected point $(X, Y, Z)$, a corresponding back point is generated directly behind it:
+   $$Z_{\text{back}} = 2 \cdot d_{\text{max}} - Z$$
+   This ensures that the front and back shells meet seamlessly at the background plane ($Z = d_{\text{max}}$) where the height offset is zero.
+2. **Normals Mirroring**: To ensure outward orientation, the normals estimated on the front side are duplicated and mirrored by flipping the $Z$ component:
+   $$\vec{n}_{\text{back}} = (n_x, n_y, -n_z)$$
+   The pre-computed outwards normals are fused, allowing the Poisson solver to skip normal estimation on the combined point cloud and stitch them seamlessly.
+3. **Texture Mirroring**: The RGB colors of the front pixels are duplicated to the back side and shaded (darkened by 15%) to visually distinguish the sides.
+
 ### Stage 4: Mesh Reconstruction
 To reconstruct the surface, we first estimate normal vectors for each point in the cloud and consistently align them.
 
@@ -172,6 +182,7 @@ python cli.py --input photo.jpg --output test_data/portrait.glb --model vits --m
 *   `--use-ann-normals`: Enable Approximate Nearest Neighbors (ANN) normal estimation via multi-threaded SciPy KD-Tree queries and vectorized PCA.
 *   `--ann-eps <float>`: Error bound tolerance for ANN KD-Tree search (lower values increase precision, higher values increase speed). Default: `0.05`.
 *   `--no-fast-math`: Disable denormal/subnormal CPU math flushing and custom ONNX Runtime thread parameters.
+*   `--double-sided`: Generate a closed double-sided 3D shape by mirroring the relief geometry and normals to the back side.
 
 ### Standalone Point-Cloud Exporter
 For fast image-to-point-cloud generation without mesh reconstruction:

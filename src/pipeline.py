@@ -28,7 +28,8 @@ def run_pipeline(
     use_quantize: bool = False,
     use_ann_normals: bool = False,
     ann_eps: float = 0.05,
-    use_fast_math: bool = True
+    use_fast_math: bool = True,
+    double_sided: bool = False
 ):
     """
     Orchestrates the entire image-to-3D pipeline from depth estimation to mesh export.
@@ -116,6 +117,25 @@ def run_pipeline(
             mapping=mapping
         )
         
+    # Optional: Generate double-sided point clouds
+    if double_sided:
+        print("\n[Stage B.2] Fusing front and mirrored back side point clouds...")
+        from src.double_sided import create_double_sided_point_cloud
+        if pcd_raw is not None:
+            pcd_raw = create_double_sided_point_cloud(
+                pcd=pcd_raw,
+                d_max=d_max,
+                use_ann_normals=use_ann_normals,
+                ann_eps=ann_eps
+            )
+        if pcd_filled is not None:
+            pcd_filled = create_double_sided_point_cloud(
+                pcd=pcd_filled,
+                d_max=d_max,
+                use_ann_normals=use_ann_normals,
+                ann_eps=ann_eps
+            )
+            
     if save_intermediates:
         if pcd_raw is not None:
             save_point_cloud(pcd_raw, os.path.join(intermediates_dir, "point_cloud.ply"))
