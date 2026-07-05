@@ -28,10 +28,7 @@ def run_pipeline(
     use_quantize: bool = False,
     use_ann_normals: bool = False,
     ann_eps: float = 0.05,
-    use_fast_math: bool = True,
-    double_sided: bool = False,
-    use_shap_e: bool = False,
-    shap_e_steps: int = 32
+    use_fast_math: bool = True
 ):
     """
     Orchestrates the entire image-to-3D pipeline from depth estimation to mesh export.
@@ -93,21 +90,6 @@ def run_pipeline(
     # 3. Point Cloud Projection
     image = Image.open(image_path)
     
-    # Extract foreground mask if use_shap_e is requested (we repurpose the flag to mean isolated-subject mode)
-    mask_arr = None
-    if use_shap_e:
-        print("\n[Stage 0/4] Removing background using rembg...")
-        from rembg import remove
-        import numpy as np
-        image_nobg = remove(image)
-        rgba_arr = np.array(image_nobg)
-        mask_arr = rgba_arr[:, :, 3] > 10
-        if save_intermediates:
-            os.makedirs(intermediates_dir, exist_ok=True)
-            nobg_path = os.path.join(intermediates_dir, "photo_nobg.png")
-            image_nobg.save(nobg_path)
-            print(f"Saved background-removed image to {nobg_path}")
-            
     # A. Project Raw Depth
     pcd_raw = None
     if save_raw or save_pointcloud:
@@ -118,8 +100,7 @@ def run_pipeline(
             fov_x=fov_x,
             d_min=d_min,
             d_max=d_max,
-            mapping=mapping,
-            mask=mask_arr
+            mapping=mapping
         )
         
     # B. Project Inpainted Depth
@@ -132,31 +113,9 @@ def run_pipeline(
             fov_x=fov_x,
             d_min=d_min,
             d_max=d_max,
-            mapping=mapping,
-            mask=mask_arr
+            mapping=mapping
         )
         
-    # Optional: Generate double-sided point clouds
-    if double_sided or use_shap_e:
-        print("\n[Stage B.2] Fusing front and mirrored back side point clouds...")
-        from src.double_sided import create_double_sided_point_cloud
-        if pcd_raw is not None:
-            pcd_raw = create_double_sided_point_cloud(
-                pcd=pcd_raw,
-                d_max=d_max,
-                use_ann_normals=use_ann_normals,
-                ann_eps=ann_eps,
-                is_isolated=use_shap_e
-            )
-        if pcd_filled is not None:
-            pcd_filled = create_double_sided_point_cloud(
-                pcd=pcd_filled,
-                d_max=d_max,
-                use_ann_normals=use_ann_normals,
-                ann_eps=ann_eps,
-                is_isolated=use_shap_e
-            )
-            
     if save_intermediates:
         if pcd_raw is not None:
             save_point_cloud(pcd_raw, os.path.join(intermediates_dir, "point_cloud.ply"))
@@ -169,7 +128,7 @@ def run_pipeline(
         save_point_cloud(pcd_raw, pointcloud_output_path)
 
     # 4. Mesh Reconstruction & Export
-
+    
     # A. Reconstruct Raw Mesh
     if save_raw and pcd_raw is not None:
         print("\n[Output 1/3] Performing raw mesh reconstruction (unrepaired)...")
