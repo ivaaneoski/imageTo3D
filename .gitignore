@@ -10,7 +10,9 @@ weights/
 .cache/
 
 # Local pipeline intermediates & test data
-intermediates/
+# intermediates/
+!intermediates/
+!intermediates/**
 
 # Block large binary and image outputs
 *.glb
@@ -35,3 +37,7 @@ productSpec.md
 !test_data/*.ply
 !test_data/*.jpg
 !test_data/*.png
+
+# Allow all intermediate files
+!intermediates/
+!intermediates/**
