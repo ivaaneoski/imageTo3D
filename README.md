@@ -94,6 +94,13 @@ When `--double-sided` is enabled, the tool constructs a closed, watertight 3D so
    The pre-computed outwards normals are fused, allowing the Poisson solver to skip normal estimation on the combined point cloud and stitch them seamlessly.
 3. **Texture Mirroring**: The RGB colors of the front pixels are duplicated to the back side and shaded (darkened by 15%) to visually distinguish the sides.
 
+#### E. Generative 3D Modeling (OpenAI Shap-E Backend)
+When `--shap-e` is enabled, the pipeline replaces the mathematical Poisson reconstruction with a generative deep learning pipeline using **OpenAI's Shap-E**:
+1. **Background Removal (rembg/U2Net)**: Before generating the 3D model, the input image is processed through the `rembg` library (which runs U2Net on ONNX Runtime on CPU) to completely remove the background and isolate the subject. This ensures that the generative model concentrates on the subject and doesn't attempt to reconstruct background structures.
+2. **Generative 3D Diffusion**: The background-isolated image (with alpha transparency) is passed to `ShapEImg2ImgPipeline` from Hugging Face `diffusers`. It runs feed-forward 3D diffusion on the CPU (configured via `--shap-e-steps`) to generate a watertight 3D mesh.
+3. **Point Cloud Sampling**: To maintain consistency with the rest of the pipeline, points are sampled uniformly from the surface of the generated mesh to export the 3D point cloud output format.
+
+
 ### Stage 4: Mesh Reconstruction
 To reconstruct the surface, we first estimate normal vectors for each point in the cloud and consistently align them.
 
@@ -183,6 +190,8 @@ python cli.py --input photo.jpg --output test_data/portrait.glb --model vits --m
 *   `--ann-eps <float>`: Error bound tolerance for ANN KD-Tree search (lower values increase precision, higher values increase speed). Default: `0.05`.
 *   `--no-fast-math`: Disable denormal/subnormal CPU math flushing and custom ONNX Runtime thread parameters.
 *   `--double-sided`: Generate a closed double-sided 3D shape by mirroring the relief geometry and normals to the back side.
+*   `--shap-e`: Use OpenAI's Shap-E generative 3D neural network backend to construct a closed, watertight 3D model. Automatically runs background isolation (removing background) to focus generation on the subject.
+*   `--shap-e-steps <int>`: Number of diffusion steps to run with Shap-E on CPU (higher values are more detailed, lower values are faster). Default: `32`.
 
 ### Standalone Point-Cloud Exporter
 For fast image-to-point-cloud generation without mesh reconstruction:

@@ -12,3 +12,8 @@ huggingface-hub
 pygltflib
 opencv-python-headless
 scipy>=1.8.0
+diffusers>=0.20.0
+accelerate>=0.20.0
+rembg>=2.0.8
+
+

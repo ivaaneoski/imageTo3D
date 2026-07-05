@@ -29,7 +29,9 @@ def run_pipeline(
     use_ann_normals: bool = False,
     ann_eps: float = 0.05,
     use_fast_math: bool = True,
-    double_sided: bool = False
+    double_sided: bool = False,
+    use_shap_e: bool = False,
+    shap_e_steps: int = 32
 ):
     """
     Orchestrates the entire image-to-3D pipeline from depth estimation to mesh export.
@@ -148,7 +150,51 @@ def run_pipeline(
         save_point_cloud(pcd_raw, pointcloud_output_path)
 
     # 4. Mesh Reconstruction & Export
-    
+    if use_shap_e:
+        print("\n[Stage 4/4] Generating closed 3D model using generative Shap-E backend...")
+        from src.shap_e_gen import generate_shape_e_mesh
+        os.makedirs(intermediates_dir, exist_ok=True)
+        temp_ply_path = os.path.join(intermediates_dir, "shap_e_mesh.ply")
+        
+        generate_shape_e_mesh(
+            image_path=image_path,
+            output_ply_path=temp_ply_path,
+            num_steps=shap_e_steps,
+            save_intermediates=save_intermediates,
+            intermediates_dir=intermediates_dir
+        )
+        
+        # Load the generated mesh using Open3D
+        import open3d as o3d
+        mesh = o3d.io.read_triangle_mesh(temp_ply_path)
+        
+        if decimate_triangles is not None and decimate_triangles > 0:
+            print(f"Decimating mesh to target triangles: {decimate_triangles}...")
+            mesh = mesh.simplify_quadric_decimation(decimate_triangles)
+            
+        # Export as raw and filled meshes (since generative model outputs clean closed mesh, both outputs are identical)
+        if save_raw:
+            print(f"Exporting raw generative mesh to {raw_output_path}...")
+            export_mesh(mesh, raw_output_path)
+            if raw_output_path.lower().endswith(".glb"):
+                verify_glb(raw_output_path)
+                
+        if save_filled:
+            print(f"Exporting filled generative mesh to {filled_output_path}...")
+            export_mesh(mesh, filled_output_path)
+            if filled_output_path.lower().endswith(".glb"):
+                verify_glb(filled_output_path)
+                
+        # Sample points to export point cloud if requested
+        if save_pointcloud:
+            print(f"Sampling points from generative mesh for export...")
+            pcd_sampled = mesh.sample_points_uniformly(number_of_points=100000)
+            print(f"Exporting sampled point cloud to {pointcloud_output_path}...")
+            save_point_cloud(pcd_sampled, pointcloud_output_path)
+            
+        print("\n--- Pipeline Completed Successfully ---")
+        return
+
     # A. Reconstruct Raw Mesh
     if save_raw and pcd_raw is not None:
         print("\n[Output 1/3] Performing raw mesh reconstruction (unrepaired)...")

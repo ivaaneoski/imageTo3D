@@ -163,6 +163,17 @@ def main():
         action="store_true",
         help="Generate a closed double-sided 3D shape by mirroring the relief geometry and normals to the back side."
     )
+    parser.add_argument(
+        "--shap-e",
+        action="store_true",
+        help="Use OpenAI's Shap-E generative 3D neural network backend (automatically removes background to isolate subject)."
+    )
+    parser.add_argument(
+        "--shap-e-steps",
+        type=int,
+        default=32,
+        help="Number of diffusion steps to run with Shap-E on CPU. Default: 32."
+    )
     
     args = parser.parse_args()
     
@@ -192,7 +203,9 @@ def main():
             use_ann_normals=args.use_ann_normals,
             ann_eps=args.ann_eps,
             use_fast_math=not args.no_fast_math,
-            double_sided=args.double_sided
+            double_sided=args.double_sided,
+            use_shap_e=args.shap_e,
+            shap_e_steps=args.shap_e_steps
         )
     except Exception as e:
         print(f"\nPipeline failed with error: {e}", file=sys.stderr)
