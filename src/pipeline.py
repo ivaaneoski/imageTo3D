@@ -93,6 +93,21 @@ def run_pipeline(
     # 3. Point Cloud Projection
     image = Image.open(image_path)
     
+    # Extract foreground mask if use_shap_e is requested (we repurpose the flag to mean isolated-subject mode)
+    mask_arr = None
+    if use_shap_e:
+        print("\n[Stage 0/4] Removing background using rembg...")
+        from rembg import remove
+        import numpy as np
+        image_nobg = remove(image)
+        rgba_arr = np.array(image_nobg)
+        mask_arr = rgba_arr[:, :, 3] > 10
+        if save_intermediates:
+            os.makedirs(intermediates_dir, exist_ok=True)
+            nobg_path = os.path.join(intermediates_dir, "photo_nobg.png")
+            image_nobg.save(nobg_path)
+            print(f"Saved background-removed image to {nobg_path}")
+            
     # A. Project Raw Depth
     pcd_raw = None
     if save_raw or save_pointcloud:
@@ -103,7 +118,8 @@ def run_pipeline(
             fov_x=fov_x,
             d_min=d_min,
             d_max=d_max,
-            mapping=mapping
+            mapping=mapping,
+            mask=mask_arr
         )
         
     # B. Project Inpainted Depth
@@ -116,11 +132,12 @@ def run_pipeline(
             fov_x=fov_x,
             d_min=d_min,
             d_max=d_max,
-            mapping=mapping
+            mapping=mapping,
+            mask=mask_arr
         )
         
     # Optional: Generate double-sided point clouds
-    if double_sided:
+    if double_sided or use_shap_e:
         print("\n[Stage B.2] Fusing front and mirrored back side point clouds...")
         from src.double_sided import create_double_sided_point_cloud
         if pcd_raw is not None:
@@ -128,14 +145,16 @@ def run_pipeline(
                 pcd=pcd_raw,
                 d_max=d_max,
                 use_ann_normals=use_ann_normals,
-                ann_eps=ann_eps
+                ann_eps=ann_eps,
+                is_isolated=use_shap_e
             )
         if pcd_filled is not None:
             pcd_filled = create_double_sided_point_cloud(
                 pcd=pcd_filled,
                 d_max=d_max,
                 use_ann_normals=use_ann_normals,
-                ann_eps=ann_eps
+                ann_eps=ann_eps,
+                is_isolated=use_shap_e
             )
             
     if save_intermediates:
@@ -150,50 +169,6 @@ def run_pipeline(
         save_point_cloud(pcd_raw, pointcloud_output_path)
 
     # 4. Mesh Reconstruction & Export
-    if use_shap_e:
-        print("\n[Stage 4/4] Generating closed 3D model using generative Shap-E backend...")
-        from src.shap_e_gen import generate_shape_e_mesh
-        os.makedirs(intermediates_dir, exist_ok=True)
-        temp_ply_path = os.path.join(intermediates_dir, "shap_e_mesh.ply")
-        
-        generate_shape_e_mesh(
-            image_path=image_path,
-            output_ply_path=temp_ply_path,
-            num_steps=shap_e_steps,
-            save_intermediates=save_intermediates,
-            intermediates_dir=intermediates_dir
-        )
-        
-        # Load the generated mesh using Open3D
-        import open3d as o3d
-        mesh = o3d.io.read_triangle_mesh(temp_ply_path)
-        
-        if decimate_triangles is not None and decimate_triangles > 0:
-            print(f"Decimating mesh to target triangles: {decimate_triangles}...")
-            mesh = mesh.simplify_quadric_decimation(decimate_triangles)
-            
-        # Export as raw and filled meshes (since generative model outputs clean closed mesh, both outputs are identical)
-        if save_raw:
-            print(f"Exporting raw generative mesh to {raw_output_path}...")
-            export_mesh(mesh, raw_output_path)
-            if raw_output_path.lower().endswith(".glb"):
-                verify_glb(raw_output_path)
-                
-        if save_filled:
-            print(f"Exporting filled generative mesh to {filled_output_path}...")
-            export_mesh(mesh, filled_output_path)
-            if filled_output_path.lower().endswith(".glb"):
-                verify_glb(filled_output_path)
-                
-        # Sample points to export point cloud if requested
-        if save_pointcloud:
-            print(f"Sampling points from generative mesh for export...")
-            pcd_sampled = mesh.sample_points_uniformly(number_of_points=100000)
-            print(f"Exporting sampled point cloud to {pointcloud_output_path}...")
-            save_point_cloud(pcd_sampled, pointcloud_output_path)
-            
-        print("\n--- Pipeline Completed Successfully ---")
-        return
 
     # A. Reconstruct Raw Mesh
     if save_raw and pcd_raw is not None:

@@ -94,11 +94,15 @@ When `--double-sided` is enabled, the tool constructs a closed, watertight 3D so
    The pre-computed outwards normals are fused, allowing the Poisson solver to skip normal estimation on the combined point cloud and stitch them seamlessly.
 3. **Texture Mirroring**: The RGB colors of the front pixels are duplicated to the back side and shaded (darkened by 15%) to visually distinguish the sides.
 
-#### E. Generative 3D Modeling (OpenAI Shap-E Backend)
-When `--shap-e` is enabled, the pipeline replaces the mathematical Poisson reconstruction with a generative deep learning pipeline using **OpenAI's Shap-E**:
-1. **Background Removal (rembg/U2Net)**: Before generating the 3D model, the input image is processed through the `rembg` library (which runs U2Net on ONNX Runtime on CPU) to completely remove the background and isolate the subject. This ensures that the generative model concentrates on the subject and doesn't attempt to reconstruct background structures.
-2. **Generative 3D Diffusion**: The background-isolated image (with alpha transparency) is passed to `ShapEImg2ImgPipeline` from Hugging Face `diffusers`. It runs feed-forward 3D diffusion on the CPU (configured via `--shap-e-steps`) to generate a watertight 3D mesh.
-3. **Point Cloud Sampling**: To maintain consistency with the rest of the pipeline, points are sampled uniformly from the surface of the generated mesh to export the 3D point cloud output format.
+#### E. Foreground-Isolated Double-Sided Relief Reconstruction
+When `--shap-e` is active, the pipeline constructs a high-resolution, closed 3D model of the isolated subject without any flat background plane:
+1. **Background Removal (rembg/U2Net)**: The input image is processed through the `rembg` library (running U2Net on ONNX Runtime on CPU) to remove the background, yielding an RGBA image with alpha transparency.
+2. **Masked Back-projection**: During the 3D projection, the depth map is masked so that only pixels belonging to the subject (alpha > 10) are projected. This creates a clean point cloud containing *only* the subject (e.g., the head/shoulders), with no background box.
+3. **Isolated Double-Sided Mirroring**: The point cloud is dynamically mirrored along the subject's maximum boundary depth ($d_{\text{boundary}} = \text{percentile}(Z, 98)$):
+   $$Z_{\text{back}} = 2 \cdot d_{\text{boundary}} - Z$$
+   $$\vec{n}_{\text{back}} = (n_x, n_y, -n_z)$$
+   This ensures the front and back shells meet exactly at the outer boundary edges of the subject, sealing it into a watertight volume.
+4. **Poisson Surface Reconstruction**: The fused point cloud is reconstructed into a watertight, high-fidelity 3D mesh (often > 200,000 polygons) with sharp details and original photo texturing.
 
 
 ### Stage 4: Mesh Reconstruction
@@ -190,8 +194,7 @@ python cli.py --input photo.jpg --output test_data/portrait.glb --model vits --m
 *   `--ann-eps <float>`: Error bound tolerance for ANN KD-Tree search (lower values increase precision, higher values increase speed). Default: `0.05`.
 *   `--no-fast-math`: Disable denormal/subnormal CPU math flushing and custom ONNX Runtime thread parameters.
 *   `--double-sided`: Generate a closed double-sided 3D shape by mirroring the relief geometry and normals to the back side.
-*   `--shap-e`: Use OpenAI's Shap-E generative 3D neural network backend to construct a closed, watertight 3D model. Automatically runs background isolation (removing background) to focus generation on the subject.
-*   `--shap-e-steps <int>`: Number of diffusion steps to run with Shap-E on CPU (higher values are more detailed, lower values are faster). Default: `32`.
+*   `--shap-e`: Generate a closed, watertight 3D model of the isolated subject. Automatically removes the background to isolate the subject, projects only the foreground pixels, and mirrors them dynamically at the subject's boundary depth to generate a high-resolution 3D bust.
 
 ### Standalone Point-Cloud Exporter
 For fast image-to-point-cloud generation without mesh reconstruction:

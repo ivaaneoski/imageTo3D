@@ -12,7 +12,8 @@ def backproject_depth(
     fx: float = None,
     fy: float = None,
     cx: float = None,
-    cy: float = None
+    cy: float = None,
+    mask: np.ndarray = None
 ) -> o3d.geometry.PointCloud:
     """
     Back-projects a normalized depth map into a 3D point cloud using pinhole camera intrinsics.
@@ -28,6 +29,7 @@ def backproject_depth(
         fy (float, optional): Focal length in y. Set to fx if None.
         cx (float, optional): Principal point x. Set to W/2 if None.
         cy (float, optional): Principal point y. Set to H/2 if None.
+        mask (np.ndarray, optional): 2D boolean mask of shape (H, W) where True represents foreground.
         
     Returns:
         o3d.geometry.PointCloud: Colored point cloud.
@@ -78,6 +80,12 @@ def backproject_depth(
     color_arr = np.array(color_rgb, dtype=np.float32) / 255.0
     colors = color_arr.reshape(-1, 3)
     
+    # Apply foreground mask if provided
+    if mask is not None:
+        keep = mask.flatten()
+        vertices = vertices[keep]
+        colors = colors[keep]
+        
     # 5. Create Open3D PointCloud
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(vertices)
