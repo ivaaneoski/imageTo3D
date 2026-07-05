@@ -137,19 +137,34 @@ def reconstruct_mesh(
 
     return mesh
 
-def remove_mesh_islands(mesh: o3d.geometry.TriangleMesh) -> o3d.geometry.TriangleMesh:
-    """Removes disconnected floating mesh components (islands) keeping only the largest component."""
+def remove_mesh_islands(mesh: o3d.geometry.TriangleMesh, min_triangles_ratio: float = 0.02) -> o3d.geometry.TriangleMesh:
+    """
+    Removes disconnected floating mesh components (islands) keeping the main components
+    that have a triangle count larger than min_triangles_ratio * total_triangles.
+    """
     print("Running connected components island cleanup...")
     try:
         triangle_clusters, cluster_n_triangles, _ = mesh.cluster_connected_triangles()
         triangle_clusters = np.asarray(triangle_clusters)
         cluster_n_triangles = np.asarray(cluster_n_triangles)
         
-        if len(cluster_n_triangles) > 1:
+        total_triangles = len(mesh.triangles)
+        if len(cluster_n_triangles) > 1 and total_triangles > 0:
             largest_cluster_idx = np.argmax(cluster_n_triangles)
-            triangles_to_remove = triangle_clusters != largest_cluster_idx
+            
+            # Keep any cluster containing at least min_triangles_ratio of total triangles (or at least 100 triangles)
+            threshold = max(100, int(min_triangles_ratio * total_triangles))
+            keep_cluster_indices = np.where(cluster_n_triangles >= threshold)[0]
+            
+            # Ensure the largest cluster is always kept
+            if largest_cluster_idx not in keep_cluster_indices:
+                keep_cluster_indices = np.append(keep_cluster_indices, largest_cluster_idx)
+                
+            triangles_to_keep = np.isin(triangle_clusters, keep_cluster_indices)
+            triangles_to_remove = ~triangles_to_keep
+            
             num_removed = np.sum(triangles_to_remove)
-            print(f"Removed {num_removed} floating/disconnected triangles.")
+            print(f"Removed {num_removed} floating/disconnected triangles (kept components with >= {threshold} triangles).")
             mesh.remove_triangles_by_mask(triangles_to_remove)
     except Exception as e:
         print(f"Warning: Island removal failed: {e}")
