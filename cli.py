@@ -136,6 +136,29 @@ def main():
         help="Directory to save intermediate files. Default: intermediates."
     )
     
+    # Optimization configurations
+    parser.add_argument(
+        "--quantize",
+        action="store_true",
+        help="Enable dynamic INT8 quantization of the ONNX model for CPU speedup."
+    )
+    parser.add_argument(
+        "--use-ann-normals",
+        action="store_true",
+        help="Use SciPy's multi-threaded cKDTree for Approximate Nearest Neighbors normal estimation."
+    )
+    parser.add_argument(
+        "--ann-eps",
+        type=float,
+        default=0.05,
+        help="Error bound tolerance for Approximate Nearest Neighbors KD-Tree search. Default: 0.05."
+    )
+    parser.add_argument(
+        "--no-fast-math",
+        action="store_true",
+        help="Disable CPU subnormal/denormal flushing and ONNX thread optimizations."
+    )
+    
     args = parser.parse_args()
     
     # Execute pipeline
@@ -159,7 +182,11 @@ def main():
             save_filled=not args.skip_filled,
             save_pointcloud=not args.skip_pointcloud,
             inpaint_threshold=args.inpaint_threshold,
-            max_hole_size=args.max_hole_size
+            max_hole_size=args.max_hole_size,
+            use_quantize=args.quantize,
+            use_ann_normals=args.use_ann_normals,
+            ann_eps=args.ann_eps,
+            use_fast_math=not args.no_fast_math
         )
     except Exception as e:
         print(f"\nPipeline failed with error: {e}", file=sys.stderr)

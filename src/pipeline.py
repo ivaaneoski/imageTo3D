@@ -24,7 +24,11 @@ def run_pipeline(
     save_filled: bool = True,
     save_pointcloud: bool = True,
     inpaint_threshold: float = 0.1,
-    max_hole_size: float = 0.1
+    max_hole_size: float = 0.1,
+    use_quantize: bool = False,
+    use_ann_normals: bool = False,
+    ann_eps: float = 0.05,
+    use_fast_math: bool = True
 ):
     """
     Orchestrates the entire image-to-3D pipeline from depth estimation to mesh export.
@@ -34,6 +38,9 @@ def run_pipeline(
         raise FileNotFoundError(f"Input image not found: {image_path}")
         
     print("--- Starting Image-to-3D Pipeline ---")
+    if use_fast_math:
+        from src.fast_math import setup_fast_math
+        setup_fast_math()
     
     # 0. Set up naming structure
     output_dir = os.path.dirname(output_path)
@@ -51,7 +58,13 @@ def run_pipeline(
 
     # 1. Depth Estimation
     print(f"\n[Stage 1/4] Estimating depth using model checkpoint: '{model_size}'...")
-    depth_map = estimate_depth(image_path, model_size=model_size, use_onnx=use_onnx)
+    depth_map = estimate_depth(
+        image_path,
+        model_size=model_size,
+        use_onnx=use_onnx,
+        use_quantize=use_quantize,
+        use_fast_math=use_fast_math
+    )
     
     # 2. Statistical Inpainting (Stage B repair)
     if save_filled:
@@ -128,7 +141,9 @@ def run_pipeline(
             decimate_triangles=decimate_triangles,
             save_density_path=density_path,
             hole_aware=False,
-            max_hole_size=0.0
+            max_hole_size=0.0,
+            use_ann_normals=use_ann_normals,
+            ann_eps=ann_eps
         )
         export_mesh(mesh_raw, raw_output_path)
         if raw_output_path.lower().endswith(".glb"):
@@ -146,7 +161,9 @@ def run_pipeline(
             decimate_triangles=decimate_triangles,
             save_density_path=density_path,
             hole_aware=True,
-            max_hole_size=max_hole_size
+            max_hole_size=max_hole_size,
+            use_ann_normals=use_ann_normals,
+            ann_eps=ann_eps
         )
         export_mesh(mesh_filled, filled_output_path)
         if filled_output_path.lower().endswith(".glb"):

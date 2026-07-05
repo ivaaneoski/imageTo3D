@@ -9,7 +9,9 @@ def reconstruct_mesh(
     decimate_triangles: int = None,
     save_density_path: str = None,
     hole_aware: bool = True,
-    max_hole_size: float = 0.1
+    max_hole_size: float = 0.1,
+    use_ann_normals: bool = False,
+    ann_eps: float = 0.05
 ) -> o3d.geometry.TriangleMesh:
     """
     Reconstructs a 3D mesh from a point cloud.
@@ -23,21 +25,28 @@ def reconstruct_mesh(
         save_density_path (str, optional): File path to save density point cloud (Stage A debug).
         hole_aware (bool): If True, applies neighbor voting and island removal.
         max_hole_size (float): Maximum hole boundary radius to fill (in meters).
+        use_ann_normals (bool): If True, uses fast ANN normal estimation.
+        ann_eps (float): Error bound for KD-tree search.
         
     Returns:
         o3d.geometry.TriangleMesh: Reconstructed mesh.
     """
     # 1. Normal Estimation
-    print("Estimating point cloud normals...")
-    # Estimate normals using hybrid search (radius-based + max neighbors)
-    pcd.estimate_normals(
-        search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30)
-    )
-    # Orient normals consistently towards the camera location at [0, 0, 0]
-    pcd.orient_normals_towards_camera_location(camera_location=np.array([0.0, 0.0, 0.0]))
-    
-    # Ensure normals are unit vectors
-    pcd.normalize_normals()
+    if use_ann_normals:
+        print(f"Estimating point cloud normals using Approximate Nearest Neighbors (ANN) (eps={ann_eps})...")
+        from src.ann_normals import estimate_normals_ann
+        estimate_normals_ann(pcd, k=30, eps=ann_eps)
+    else:
+        print("Estimating point cloud normals using standard Open3D KDTree...")
+        # Estimate normals using hybrid search (radius-based + max neighbors)
+        pcd.estimate_normals(
+            search_param=o3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30)
+        )
+        # Orient normals consistently towards the camera location at [0, 0, 0]
+        pcd.orient_normals_towards_camera_location(camera_location=np.array([0.0, 0.0, 0.0]))
+        
+        # Ensure normals are unit vectors
+        pcd.normalize_normals()
 
     # 2. Reconstruction
     if method == "poisson":

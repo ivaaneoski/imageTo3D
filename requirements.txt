@@ -11,3 +11,4 @@ transformers>=4.45.0
 huggingface-hub
 pygltflib
 opencv-python-headless
+scipy>=1.8.0

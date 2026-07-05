@@ -42,7 +42,13 @@ def export_to_onnx(model_id: str, onnx_path: str):
     )
     print("ONNX export completed successfully.")
 
-def estimate_depth(image_path: str, model_size: str = "vits", use_onnx: bool = True) -> np.ndarray:
+def estimate_depth(
+    image_path: str,
+    model_size: str = "vits",
+    use_onnx: bool = True,
+    use_quantize: bool = False,
+    use_fast_math: bool = True
+) -> np.ndarray:
     """
     Estimates depth for the input image using Depth Anything V2.
     Returns:
@@ -66,14 +72,26 @@ def estimate_depth(image_path: str, model_size: str = "vits", use_onnx: bool = T
             if not os.path.exists(onnx_path):
                 export_to_onnx(model_id, onnx_path)
             
-            print(f"Running ONNX inference using model: {onnx_path}...")
+            if use_quantize:
+                from src.quantization import get_quantized_model
+                model_to_run = get_quantized_model(onnx_path)
+            else:
+                model_to_run = onnx_path
+                
+            print(f"Running ONNX inference using model: {model_to_run}...")
             # Force size to exactly 518x518 to match the exported ONNX model's expected shape.
             # This prevents shape mismatch inside the vision transformer's reshape layers.
             image_square = image.resize((518, 518), resample=Image.Resampling.BILINEAR)
             inputs = processor(images=image_square, return_tensors="np")
             
-            # Start ONNX session
-            session = ort.InferenceSession(onnx_path, providers=['CPUExecutionProvider'])
+            # Start ONNX session with optional CPU fast math thread optimizations
+            if use_fast_math:
+                from src.fast_math import get_optimized_session_options
+                sess_options = get_optimized_session_options()
+            else:
+                sess_options = ort.SessionOptions()
+                
+            session = ort.InferenceSession(model_to_run, sess_options, providers=['CPUExecutionProvider'])
             ort_inputs = {session.get_inputs()[0].name: inputs["pixel_values"]}
             ort_outputs = session.run(None, ort_inputs)
             

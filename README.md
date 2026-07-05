@@ -51,6 +51,7 @@ We load the **Depth Anything V2** monocular depth model.
     1. During preprocessing, the input image of size $W \times H$ is cropped/resized to a fixed square of $518 \times 518$ pixels before model inference.
     2. ONNX Runtime performs fast CPU execution on the square input.
     3. The resulting depth map is resized back to the original aspect ratio ($W \times H$) using bilinear interpolation.
+*   **INT8 Dynamic Quantization (`--quantize`):** By default, the model executes in 32-bit floating point (FP32). Passing the `--quantize` flag dynamically quantizes the model weights to 8-bit signed integers (`QInt8`). This speeds up matrix multiplications on the CPU by up to **3x–4x** using vectorized AVX/VNNI instructions and reduces weights cache size on disk by **75%**.
 *   **Normalization:** Raw model outputs are relative values. We normalize them to $[0.0, 1.0]$ where $0.0$ is the farthest point and $1.0$ is the closest point:
     $$D_{\text{norm}} = \frac{D - D_{\text{min}}}{D_{\text{max}} - D_{\text{min}}}$$
 
@@ -84,22 +85,33 @@ $$Y = -\frac{(v - c_y) \cdot Z}{f_y}$$
 $$Z = Z$$
 
 ### Stage 4: Mesh Reconstruction
-We estimate unit normal vectors for each point in the point cloud using a hybrid KD-Tree search (radius $0.1$m, max $30$ neighbors) and align them consistently to point towards the camera sensor at $[0.0, 0.0, 0.0]$.
+To reconstruct the surface, we first estimate normal vectors for each point in the cloud and consistently align them.
 
-#### A. Poisson Surface Reconstruction
+#### A. Normal Estimation: Standard vs. Approximate Nearest Neighbors (ANN)
+*   **Standard Method:** Performs an exact hybrid search (radius-based + max neighbors) using Open3D's C++ KD-tree search.
+*   **ANN Method (`--use-ann-normals`):** Builds a spatial index using SciPy's multi-threaded `cKDTree`. Neighbors are queried in parallel across all CPU cores with an approximation tolerance $\epsilon$ (`--ann-eps`), allowing the tree search to stop early. Covariance matrices are computed in a fully vectorized batch mode, and normal vectors are extracted using NumPy batch eigenvalue decomposition (`np.linalg.eigh`).
+*   **Alignment:** Normals are consistently oriented to point towards the camera sensor at $[0.0, 0.0, 0.0]$:
+    $$\vec{n}_i = -\vec{n}_i \quad \text{if} \quad \vec{n}_i \cdot (\vec{p}_{\text{camera}} - \vec{p}_i) < 0$$
+
+#### B. Poisson Surface Reconstruction
 We solve for an implicit indicator function whose gradient matches the aligned normals using an Octree (default depth $9$, representing $512^3$ voxels). The solver returns a triangle mesh along with per-vertex density values (confidence).
 
-#### B. Hole-Aware Trimming
+#### C. Hole-Aware Trimming
 Poisson reconstruction is known for creating boundary blobs. Standard trimming removes all vertices below a confidence threshold (e.g., bottom 10% density), which can punch holes in low-density interior regions.
 *   **Graph-based Neighborhood Check:** We build the vertex adjacency list. For any vertex flagged for density removal, we check its adjacent neighbors. If the proportion of its neighbors flagged for removal is less than $50\%$, we protect the vertex and do **not** remove it:
     $$\frac{|\{n \in \text{Neighbors}(i) \mid \text{Trimmable}[n] = \text{True}\}|}{|\text{Neighbors}(i)|} < 0.5 \implies \text{Keep Vertex } i$$
     This preserves the interior structure and prevents noise from carving holes.
 
-#### C. Connected Component Cleanup (Island Removal)
+#### D. Connected Component Cleanup (Island Removal)
 Density trimming can produce tiny disconnected floating fragments. We run edge-based triangle clustering. We calculate the size of all clusters and discard all disconnected islands, keeping only the single largest connected mesh component.
 
-#### D. Tensor-based Hole Filling
+#### E. Tensor-based Hole Filling
 Any remaining open boundaries are sealed using Open3D's tensor-based `fill_holes` post-processing. The mesh is converted to a tensor representation, boundaries of radius $\le$ `max_hole_size` are triangulated, and the mesh is converted back to legacy format. Normals are recomputed to ensure smooth lighting.
+
+### Fast Math CPU Optimizations
+To achieve maximum local CPU performance, the pipeline integrates several optimizations:
+*   **Subnormal/Denormal Math Flushing:** CPU floating-point units can experience massive stalls when handling subnormal numbers (denormals, i.e., numbers extremely close to zero). We enable flush-to-zero mode (`torch.set_flush_denormal(True)`) to bypass microcode handling and speed up execution.
+*   **ONNX Thread Allocation:** Disables hyperthreaded core over-allocation by matching ONNX's `intra_op_num_threads` to the machine's physical CPU cores, avoiding scheduler bottlenecks.
 
 ---
 
@@ -156,6 +168,10 @@ python cli.py --input photo.jpg --output test_data/portrait.glb --model vits --m
 *   `--max-hole-size <float>`: Maximum hole boundary radius to fill (in meters). Default: `0.1`.
 *   `--save-intermediates`: Saves the intermediate depth maps and density ply files in the `intermediates/` directory.
 *   `--skip-raw` / `--skip-filled` / `--skip-pointcloud`: Optional flags to skip saving specific output formats.
+*   `--quantize`: Enable dynamic INT8 quantization of the ONNX model (FP32 -> INT8) for up to 3-4x faster depth estimation on CPU.
+*   `--use-ann-normals`: Enable Approximate Nearest Neighbors (ANN) normal estimation via multi-threaded SciPy KD-Tree queries and vectorized PCA.
+*   `--ann-eps <float>`: Error bound tolerance for ANN KD-Tree search (lower values increase precision, higher values increase speed). Default: `0.05`.
+*   `--no-fast-math`: Disable denormal/subnormal CPU math flushing and custom ONNX Runtime thread parameters.
 
 ### Standalone Point-Cloud Exporter
 For fast image-to-point-cloud generation without mesh reconstruction:
