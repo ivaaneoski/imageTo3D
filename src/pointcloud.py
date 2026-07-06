@@ -71,7 +71,7 @@ def backproject_depth(
     # To map to 3D space where positive Y is up, we flip the Y coordinates:
     y = -(v - cy) * z_flat / fy
     
-    vertices = np.stack([x, y, z_flat], axis=-1)
+    vertices = np.stack([x, y, -z_flat], axis=-1)
     
     # 4. Extract and normalize colors from the RGB image
     color_rgb = color_image.convert("RGB")
